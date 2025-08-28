@@ -1,0 +1,27 @@
+name: Telegram Reminder
+
+on:
+  schedule:
+    - cron: "0 19 * * *"   # 22:00 по Москве (19:00 UTC)
+  workflow_dispatch:
+
+jobs:
+  reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check journal
+        id: check
+        run: |
+          d=$(date -u +%F)
+          y=${d:0:4}; m=${d:5:2}
+          f="journal/$y/$m/$d.md"
+          if [ ! -f "$f" ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+          fi
+      - name: Send Telegram reminder
+        if: steps.check.outputs.missing == 'true'
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ 8300488815:AAEfvqhVfa9pHBIek9562gfiHDB4ltaFlcI }}/sendMessage \
+            -d chat_id=${{ 5199287275 }} \
+            -d text="⚠️ Напоминание: нет дневной записи за $(date -u +%F)"

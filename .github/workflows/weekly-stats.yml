@@ -1,0 +1,61 @@
+name: Weekly Journal Stats
+
+on:
+  schedule:
+    - cron: "0 8 * * 0"   # каждое воскресенье 11:00 по Москве
+  workflow_dispatch:
+
+jobs:
+  stats:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Calculate stats
+        id: calc
+        run: |
+          today=$(date +%s)
+          weekAgo=$(date -d "7 days ago" +%s)
+          entries=$(find journal -type f -name "*.md" | sort -r | head -n 30)
+
+          count7=0
+          streak=0
+
+          for f in $entries; do
+            d=$(basename "$f" .md)
+            ts=$(date -d "$d" +%s)
+            if [ $ts -ge $weekAgo ]; then
+              count7=$((count7+1))
+            fi
+          done
+
+          # streak
+          for i in $(seq 0 30); do
+            day=$(date -d "-$i day" +%F)
+            if [ -f journal/${day:0:4}/${day:5:2}/$day.md ]; then
+              streak=$((streak+1))
+            else
+              break
+            fi
+          done
+
+          echo "count7=$count7" >> $GITHUB_OUTPUT
+          echo "streak=$streak" >> $GITHUB_OUTPUT
+
+      - name: Update README with stats
+        run: |
+          c7=${{ steps.calc.outputs.count7 }}
+          streak=${{ steps.calc.outputs.streak }}
+          awk -v stats="Последние 7 дней: $c7/7 ✔\nСерия без пропусков: $streak дней 🔥" '
+            /<!-- STATS:START -->/ {print; print stats; found=1; next}
+            /<!-- STATS:END -->/ {found=0}
+            !found
+          ' README.md > README.new
+          mv README.new README.md
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git commit -m "docs: update weekly stats" || echo "No changes"
+          git push

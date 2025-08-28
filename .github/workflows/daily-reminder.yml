@@ -1,0 +1,52 @@
+name: Daily Journal Reminder
+
+on:
+  schedule:
+    - cron: "0 19 * * *"   # ежедневно 22:00 по Москве (19:00 UTC)
+  workflow_dispatch:        # запуск вручную
+
+jobs:
+  check-journal:
+    name: Check daily journal file
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check today's journal file
+        id: check
+        run: |
+          d=$(date -u +%F)          # текущая дата в UTC
+          y=${d:0:4}; m=${d:5:2}
+          f="journal/$y/$m/$d.md"
+          echo "Today: $d"
+          if [ ! -f "$f" ]; then
+            echo "missing=true" >> $GITHUB_OUTPUT
+            echo "Файл $f отсутствует"
+          else
+            echo "missing=false" >> $GITHUB_OUTPUT
+            echo "Файл $f найден"
+          fi
+
+      - name: Open issue if missing
+        if: steps.check.outputs.missing == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const d = new Date().toISOString().slice(0,10);
+            const issueTitle = `Нет дневной записи за ${d}`;
+            const issueBody = `
+            Сегодняшний файл журнала не найден.
+
+            Ожидаемый путь: \`journal/${d.slice(0,4)}/${d.slice(5,7)}/${d}.md\`
+
+            Пожалуйста, добавь запись и закоммить.
+            `;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: issueTitle,
+              body: issueBody,
+              labels: ['reminder']
+            });
