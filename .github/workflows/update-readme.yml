@@ -5,8 +5,11 @@ on:
     branches:
       - main
   schedule:
-    - cron: "0 20 * * *"   # каждый день в 23:00 по Москве (20:00 UTC)
+    - cron: "0 19 * * *"   # каждый день в 22:00 по Москве (19:00 UTC)
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   update-readme:
@@ -15,6 +18,8 @@ jobs:
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Generate latest entries
         id: generate
@@ -25,14 +30,17 @@ jobs:
           echo "Latest journal entries:"
           echo "$entries"
 
-          # Формируем markdown-список ссылок
           list=""
           for f in $entries; do
-            d=$(basename "$f" .md)
-            list="$list\n- [$d]($f)"
+            d=$(basename "$f" .md)              # дата (имя файла)
+            title=$(grep -m1 "^Кратко:" "$f" | sed 's/^Кратко: *//')
+            if [ -z "$title" ]; then
+              title="(без описания)"
+            fi
+            # только дата в [] и текст
+            list="$list\n- [$d] $title"
           done
 
-          # Сохраняем список в переменную GitHub Actions
           echo "list<<EOF" >> $GITHUB_OUTPUT
           echo -e "$list" >> $GITHUB_OUTPUT
           echo "EOF" >> $GITHUB_OUTPUT
@@ -40,14 +48,11 @@ jobs:
       - name: Update README.md
         run: |
           list="${{ steps.generate.outputs.list }}"
-
-          # Заменяем блок между маркерами в README.md
           awk -v list="$list" '
             /<!-- DAILY-JOURNAL:START -->/ {print; print list; found=1; next}
             /<!-- DAILY-JOURNAL:END -->/ {found=0}
             !found
           ' README.md > README.new
-
           mv README.new README.md
 
       - name: Commit changes

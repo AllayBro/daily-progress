@@ -10,6 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Check journal
         id: check
         run: |
@@ -19,9 +20,10 @@ jobs:
           if [ ! -f "$f" ]; then
             echo "missing=true" >> $GITHUB_OUTPUT
           fi
+
       - name: Send Telegram reminder
         if: steps.check.outputs.missing == 'true'
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ 8300488815:AAEfvqhVfa9pHBIek9562gfiHDB4ltaFlcI }}/sendMessage \
-            -d chat_id=${{ 5199287275 }} \
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+            -d chat_id=${{ secrets.TELEGRAM_CHAT_ID }} \
             -d text="⚠️ Напоминание: нет дневной записи за $(date -u +%F)"
