@@ -27,7 +27,7 @@ git config user.email
 
 ```powershell
 git config --global user.name "AllayBro"
-git config --global user.email "artemzotov007@inbox.ru"
+git config --global user.email "sajkdsakdjsa@bk.ru"
 ```
 
 ##  РАБОТА С ФАЙЛАМИ
